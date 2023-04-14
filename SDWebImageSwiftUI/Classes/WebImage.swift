@@ -14,6 +14,7 @@ import SDWebImage
 final class WebImageModel : ObservableObject {
     /// URL image
     @Published var url: URL?
+    @Published var customeCachekey: String?
     @Published var options: SDWebImageOptions = []
     @Published var context: [SDWebImageContextOption : Any]? = nil
 }
@@ -74,7 +75,7 @@ public struct WebImage : View {
     /// - Parameter options: The options to use when downloading the image. See `SDWebImageOptions` for the possible values.
     /// - Parameter context: A context contains different options to perform specify changes or processes, see `SDWebImageContextOption`. This hold the extra objects which `options` enum can not hold.
     /// - Parameter isAnimating: The binding for animation control. The binding value should be `true` when initialized to setup the correct animated image class. If not, you must provide the `.animatedImageClass` explicitly. When the animation started, this binding can been used to start / stop the animation.
-    public init(url: URL?, options: SDWebImageOptions = [], context: [SDWebImageContextOption : Any]? = nil, isAnimating: Binding<Bool>) {
+    public init(url: URL?, options: SDWebImageOptions = [], context: [SDWebImageContextOption : Any]? = nil, isAnimating: Binding<Bool>,customeCacahekey:String? = "") {
         self._isAnimating = isAnimating
         var context = context ?? [:]
         // provide animated image class if the initialized `isAnimating` is true, user can still custom the image class if they want
@@ -85,6 +86,7 @@ public struct WebImage : View {
         }
         let imageModel = WebImageModel()
         imageModel.url = url
+        imageModel.customeCachekey = customeCacahekey
         imageModel.options = options
         imageModel.context = context
         _imageModel = ObservedObject(wrappedValue: imageModel)
@@ -93,13 +95,14 @@ public struct WebImage : View {
         _indicatorStatus = ObservedObject(wrappedValue: imageManager.indicatorStatus)
     }
     
+    
     /// Create a web image with url, placeholder, custom options and context.
     /// - Parameter url: The image url
     /// - Parameter options: The options to use when downloading the image. See `SDWebImageOptions` for the possible values.
     /// - Parameter context: A context contains different options to perform specify changes or processes, see `SDWebImageContextOption`. This hold the extra objects which `options` enum can not hold.
-    public init(url: URL?, options: SDWebImageOptions = [], context: [SDWebImageContextOption : Any]? = nil) {
-        self.init(url: url, options: options, context: context, isAnimating: .constant(true))
-    }
+    public init(url: URL?, options: SDWebImageOptions = [], context: [SDWebImageContextOption : Any]? = nil,customeCacahekey:String? = "") {
+            self.init(url: url, options: options, context: context, isAnimating: .constant(true), customeCacahekey: customeCacahekey)
+        }
     
     public var body: some View {
         // Container
@@ -126,12 +129,16 @@ public struct WebImage : View {
                     self.setupManager()
                     if (self.imageManager.error == nil) {
                         // Load remote image when first appear
-                        self.imageManager.load(url: imageModel.url, options: imageModel.options, context: imageModel.context)
+                       if SDImageCache.shared.imageFromCache(forKey: imageModel.customeCachekey) == nil{
+                             self.imageManager.load(url: imageModel.url, options: imageModel.options, context: imageModel.context)
+                                               }
                     }
                     guard self.imageConfiguration.retryOnAppear else { return }
                     // When using prorgessive loading, the new partial image will cause onAppear. Filter this case
                     if self.imageManager.error != nil && !self.imageManager.isIncremental {
-                        self.imageManager.load(url: imageModel.url, options: imageModel.options, context: imageModel.context)
+                       if SDImageCache.shared.imageFromCache(forKey: imageModel.customeCachekey) == nil{
+                            self.imageManager.load(url: imageModel.url, options: imageModel.options, context: imageModel.context)
+                                               }
                     }
                 }, disappear: {
                     guard self.imageConfiguration.cancelOnDisappear else { return }
